@@ -1,1 +1,1 @@
-# QTSPIMBot for CS 233
+# A fun project some friends are working on
