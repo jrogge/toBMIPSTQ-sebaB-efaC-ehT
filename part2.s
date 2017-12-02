@@ -1,24 +1,32 @@
 # syscall constants
-PRINT_STRING	= 4
-PRINT_CHAR	= 11
-PRINT_INT	= 1
+PRINT_STRING = 4
+PRINT_CHAR   = 11
+PRINT_INT    = 1
 
-# memory-mapped I/O
-VELOCITY	= 0xffff0010
-ANGLE		= 0xffff0014
-ANGLE_CONTROL	= 0xffff0018
+# debug constants
+PRINT_INT_ADDR   = 0xffff0080
+PRINT_FLOAT_ADDR = 0xffff0084
+PRINT_HEX_ADDR   = 0xffff0088
 
-BOT_X		= 0xffff0020
-BOT_Y		= 0xffff0024
-
-TIMER		= 0xffff001c
+# spimbot memory-mapped I/O
+VELOCITY       = 0xffff0010
+ANGLE          = 0xffff0014
+ANGLE_CONTROL  = 0xffff0018
+BOT_X          = 0xffff0020
+BOT_Y          = 0xffff0024
+OTHER_BOT_X    = 0xffff00a0
+OTHER_BOT_Y    = 0xffff00a4
+TIMER          = 0xffff001c
+SCORES_REQUEST = 0xffff1018
 
 REQUEST_JETSTREAM	= 0xffff00dc
-REQUEST_STARCOIN	= 0xffff00e0
+REQUEST_RADAR		= 0xffff00e0
+BANANA			= 0xffff0040
+MUSHROOM		= 0xffff0044
+STARCOIN		= 0xffff0048
 
-PRINT_INT_ADDR		= 0xffff0080
-PRINT_FLOAT_ADDR	= 0xffff0084
-PRINT_HEX_ADDR		= 0xffff0088
+REQUEST_PUZZLE		= 0xffff00d0
+SUBMIT_SOLUTION		= 0xffff00d4
 
 # interrupt constants
 BONK_MASK	= 0x1000
@@ -27,8 +35,11 @@ BONK_ACK	= 0xffff0060
 TIMER_MASK	= 0x8000
 TIMER_ACK	= 0xffff006c
 
-REQUEST_STARCOIN_INT_MASK	= 0x4000
-REQUEST_STARCOIN_ACK		= 0xffff00e4
+REQUEST_RADAR_INT_MASK	= 0x4000
+REQUEST_RADAR_ACK	= 0xffff00e4
+
+REQUEST_PUZZLE_ACK	= 0xffff00d8
+REQUEST_PUZZLE_INT_MASK	= 0x800
 
 .data
 three:	.float	3.0
@@ -43,65 +54,10 @@ ping_starcoins: .space 1
 starcoins_ready: .space 1
 
 .align 4
-points_x: .space 4
-points_y: .space 4
 starcoins_map: .space 512
 
 .text
 
-get_value: # returns the value of jetstream at specified coord
-        sub     $sp, $sp, 4
-        sw      $s2, 0($sp)
-        la      $s2, event_horizon_data
-        mul     $a1, $a1, 300
-        add     $a1, $s2, $a1   # &map[y]
-        add     $a0, $a0, $a1   # &map[y][x]
-        lbu     $v0, 0($a0)     # return map[y][x]
-        lw      $s2, 0($sp)
-        add     $sp, $sp, 4
-        jr      $ra
-
-# --- sets our boy flying off to a specified point ---
-# $a0 = destX
-# #a1 = destY
-# no return value, set angle within funct
-point_to:
-        sub     $sp, $sp, 16
-        sw      $ra, 0($sp)
-        sw      $s0, 4($sp)
-        sw      $s1, 8($sp)
-        sw      $s2, 12($sp)
-
-        lw      $s0, BOT_X              # $s0 = x
-        lw      $s1, BOT_Y              # $s1 = y
-
-        sub     $s0, $a0, $s0           # $s0 = deltaX
-        sub     $s1, $a1, $s1           # $s1 = deltaY
-
-        # make sure we don't divide by 0
-        bne     $s0, $0, valid_quotient # if deltaX == 0
-        blt     $s1, $0, point_up       # if deltaY > 0
-        li      $s2, 90                 # set angle = 90
-        j       end_point
-point_up:
-        li      $s2, 270                # else set angle = 270
-        j       end_point
-valid_quotient:
-        move    $a0, $s0
-        move    $a1, $s1
-        jal     sb_arctan               # get alpha
-        move    $s2, $v0                # angle = alpha
-end_point:
-        sw      $s2, ANGLE
-        li      $t0, 1
-        sw      $t0, ANGLE_CONTROL
-        
-        lw      $ra, 0($sp)
-        lw      $s0, 4($sp)
-        lw      $s1, 8($sp)
-        lw      $s2, 12($sp)
-        add     $sp, $sp, 16
-        jr      $ra
 
 main:
         sub     $sp, $sp, 36
@@ -115,13 +71,19 @@ main:
         sw      $s6, 28($sp)
         sw      $s7, 32($sp)
 
-        la      $s2, event_horizon_data
-        sw      $s0, REQUEST_JETSTREAM  # $s2 = &map
+	# request jetstream data
+        la      $s0, event_horizon_data
+        sw      $s0, REQUEST_JETSTREAM  # $s0 = &map
+
+	# set velocity = 10
+	li	$t0, 10
+	sw	$t0 VELOCITY
         
 main_loop:
 	# note that we infinite loop to avoid stopping the simulation early
-        lw      $t6, BOT_X              # x
-        lw      $t7, BOT_Y              # y
+	#lw      $t6, BOT_X              # x
+        #lw      $t7, BOT_Y              # y
+	j	main_loop
 
 #        lb      $t0, 0($s7)             # if starcoins_ready
 #        bne     $t0, $0, get_starcoins  # go get them
@@ -202,6 +164,61 @@ end_go_to:
         add     $sp, $sp, 20
         jr      $ra
 
+get_value: # returns the value of jetstream at specified coord
+        sub     $sp, $sp, 4
+        sw      $s2, 0($sp)
+        la      $s2, event_horizon_data
+        mul     $a1, $a1, 300
+        add     $a1, $s2, $a1   # &map[y]
+        add     $a0, $a0, $a1   # &map[y][x]
+        lbu     $v0, 0($a0)     # return map[y][x]
+        lw      $s2, 0($sp)
+        add     $sp, $sp, 4
+        jr      $ra
+
+# --- sets our boy flying off to a specified point ---
+# $a0 = destX
+# #a1 = destY
+# no return value, set angle within funct
+point_to:
+        sub     $sp, $sp, 16
+        sw      $ra, 0($sp)
+        sw      $s0, 4($sp)
+        sw      $s1, 8($sp)
+        sw      $s2, 12($sp)
+
+        lw      $s0, BOT_X              # $s0 = x
+        lw      $s1, BOT_Y              # $s1 = y
+
+        sub     $s0, $a0, $s0           # $s0 = deltaX
+        sub     $s1, $a1, $s1           # $s1 = deltaY
+
+        # make sure we don't divide by 0
+        bne     $s0, $0, valid_quotient # if deltaX == 0
+        blt     $s1, $0, point_up       # if deltaY > 0
+        li      $s2, 90                 # set angle = 90
+        j       end_point
+point_up:
+        li      $s2, 270                # else set angle = 270
+        j       end_point
+valid_quotient:
+        move    $a0, $s0
+        move    $a1, $s1
+        jal     sb_arctan               # get alpha
+        move    $s2, $v0                # angle = alpha
+end_point:
+        sw      $s2, ANGLE
+        li      $t0, 1
+        sw      $t0, ANGLE_CONTROL
+        
+        lw      $ra, 0($sp)
+        lw      $s0, 4($sp)
+        lw      $s1, 8($sp)
+        lw      $s2, 12($sp)
+        add     $sp, $sp, 16
+        jr      $ra
+
+
 # === Interrupt Handler ===
 .kdata				# interrupt handler data (separated just for readability)
 chunkIH:	.space 16	# space for four registers
@@ -232,8 +249,8 @@ interrupt_dispatch:			# Interrupt:
 	and	$a0, $k0, TIMER_MASK	# is there a timer interrupt?
 	bne	$a0, 0, timer_interrupt
 
-        and     $a0, $k0, REQUEST_STARCOIN_INT_MASK
-        bne     $a0, 0, star_interrupt
+#        and     $a0, $k0, REQUEST_STARCOIN_INT_MASK
+#        bne     $a0, 0, star_interrupt
 
 	li	$v0, PRINT_STRING	# Unhandled interrupt types
 	la	$a0, unhandled_str
