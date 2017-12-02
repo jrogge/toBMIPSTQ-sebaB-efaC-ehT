@@ -1,8 +1,0 @@
-Registers:
-$s0 - jetstream map
-
-TODO:
-rewrite interrupt handler
-integrate puzzle solving
-integrate starcoin fetching
-do pathing
