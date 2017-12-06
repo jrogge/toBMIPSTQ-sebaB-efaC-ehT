@@ -1,8 +1,20 @@
 Registers:
-$s0 - jetstream map
+    $s0 - jetstream map
 
 TODO:
-rewrite interrupt handler
-integrate puzzle solving
-integrate starcoin fetching
-do pathing
+    rewrite interrupt handler
+    integrate puzzle solving
+    integrate starcoin fetching
+    do pathing
+
+Methods:
+    next_point
+    determine_quad
+    point_to
+    get_value
+    go_to
+
+Style:
+    Every function has *= as a comment before it with the name of the function 
+        directly below that
+        potentially useful for quickly navigating functions

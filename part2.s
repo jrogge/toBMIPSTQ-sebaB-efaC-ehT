@@ -83,6 +83,7 @@ main_loop:
 	# note that we infinite loop to avoid stopping the simulation early
 	#lw      $t6, BOT_X              # x
         #lw      $t7, BOT_Y              # y
+	jal	next_point
 	j	main_loop
 
 #        lb      $t0, 0($s7)             # if starcoins_ready
@@ -114,14 +115,11 @@ main_loop:
 #        jal     hit_edge
 #	 j	 main_loop
 
-       
-
-
-# -----------------------------------------------------------------------
-# go_to takes control of the SPIMBot and moves it to the specified point
+# *===============================================================
+# go_to
+# takes control of the SPIMBot and moves it to the specified point
 # $a0 - x
 # $a1 - y
-# -----------------------------------------------------------------------
 go_to:
         sub     $sp, $sp, 20
         sw      $ra, 0($sp)
@@ -164,19 +162,32 @@ end_go_to:
         add     $sp, $sp, 20
         jr      $ra
 
-get_value: # returns the value of jetstream at specified coord
-        sub     $sp, $sp, 4
-        sw      $s2, 0($sp)
-        la      $s2, event_horizon_data
+# ================================================================
+
+# *===============================================================
+# get_value
+# $a0 = target x
+# $a1 = target y
+# returns the value of jetstream at specified coord
+get_value:
+        sub     $sp, $sp, 8
+	sw	$ra, 0($sp)
+        sw      $s0, 4($sp)
+
+        la      $s0, event_horizon_data
         mul     $a1, $a1, 300
-        add     $a1, $s2, $a1   # &map[y]
+        add     $a1, $s0, $a1   # &map[y]
         add     $a0, $a0, $a1   # &map[y][x]
         lbu     $v0, 0($a0)     # return map[y][x]
-        lw      $s2, 0($sp)
-        add     $sp, $sp, 4
-        jr      $ra
 
-# --- sets our boy flying off to a specified point ---
+	lw	$ra, 0($sp)
+        lw      $s0, 4($sp)
+        add     $sp, $sp, 8
+        jr      $ra
+# ================================================================
+
+# *===============================================================
+# sets our boy flying off to a specified point
 # $a0 = destX
 # #a1 = destY
 # no return value, set angle within funct
@@ -217,7 +228,276 @@ end_point:
         lw      $s2, 12($sp)
         add     $sp, $sp, 16
         jr      $ra
+# ================================================================
 
+# *===============================================================
+# determine_quad
+# no parameters
+# returns 1, 2, 3 or 4 depending on the position of the bot
+determine_quad:
+        sub     $sp, $sp, 4
+        sw      $ra, 0($sp)
+
+        lw      $s0, BOT_X              # x
+        lw      $s1, BOT_Y              # y
+
+        li      $t9, 149
+        ble     $s0, $t9, x_neg
+        # if x > 149
+        ble     $s1, $t9, x_pos_y_neg
+        # if y > 149
+        li      $v0, 1          # quad = 1
+        j       end_determine_quad
+x_pos_y_neg:
+        # if y <= 149
+        li      $v0, 4          # quad = 4
+        j       end_determine_quad
+x_neg:
+        # if x <= 149
+        ble     $s1, $t9, x_neg_y_neg
+        # if y > 149
+        li      $v0, 2          # quad = 2
+        j       end_determine_quad
+x_neg_y_neg:
+        # if y <= 149
+        li      $v0, 3          # quad = 3
+        # fall through to end_determine_quad
+end_determine_quad:
+        lw      $ra, 0($sp)
+        add     $sp, $sp, 4
+        jr      $ra
+# ================================================================
+
+# *===============================================================
+# next_point
+# no parameters
+# no return
+# points the spimbot in the direction of the next pixel along the inner edge of jetstream
+next_point:
+	#sub	$sp, $sp, #TODO:
+	sub	$sp, $sp, 12
+	sw	$ra, 0($sp)
+	sw	$s0, 4($sp)
+	sw	$s1, 8($sp)
+	#sw	$s2, 12($sp)
+
+	lw	$s0, BOT_X
+	lw	$s1, BOT_Y
+
+	jal	determine_quad
+	# if quadrant == 1
+	li	$t0, 1
+	bne	$v0, $t1, quad_2
+	sub	$a0, $s0, 1	# x - 1
+	move	$a1, $s1	# y
+	jal	get_value
+	# if point to left (x - 1, y) is in jetstream, point at it
+	li	$t0, 2
+	bne	$v0, $t0, q1_op2
+	sub	$a0, $s0, 1	# x - 1
+	move	$a1, $s1	# y
+	jal	point_to
+	j	np_end
+q1_op2:	# quadrant 1 option (candidate pixel) 2
+	sub	$a0, $s0, 1	# x - 1
+	add	$a1, $s1, 1	# y + 1
+	jal	get_value
+	li	$t0, 2
+	bne	$v0, $t0, q1_op3
+	sub	$a0, $s0, 1	# x - 1
+	add	$a1, $s1, 1	# y + 1
+	jal	point_to
+	j	np_end
+q1_op3:	# quadrant 1 option (candidate pixel) 3
+#	# test if the last point is in jetstream
+#	# only need this part if we want to be very robust
+#	sub	$a0, $s0, 1	# x - 1
+#	add	$a1, $s1, 1	# y + 1
+#	jal	get_value
+#	li	$t0, 2
+#	bne	$v0, $t0, q1_op3
+	move	$a0, $s0	# x
+	add	$a1, $s1, 1	# y + 1
+	jal	point_to
+	j	np_end
+	
+#TODO:
+quad_2:
+	li	$t0, 2
+	bne	$v0, $t1, quad_3
+	move	$a0, $s0	# x
+	sub	$a1, $s1, 1	# y - 1
+	jal	get_value
+	# if point to left (x, y - 1) is in jetstream, point at it
+	li	$t0, 2
+	bne	$v0, $t0, q1_op2
+	sub	$a0, $s0, 1	# x - 1
+	move	$a1, $s1	# y
+	jal	point_to
+	j	np_end
+q1_op2:	# quadrant 1 option (candidate pixel) 2
+	sub	$a0, $s0, 1	# x - 1
+	add	$a1, $s1, 1	# y + 1
+	jal	get_value
+	li	$t0, 2
+	bne	$v0, $t0, q1_op3
+	sub	$a0, $s0, 1	# x - 1
+	add	$a1, $s1, 1	# y + 1
+	jal	point_to
+	j	np_end
+q1_op3:	# quadrant 1 option (candidate pixel) 3
+#	# test if the last point is in jetstream
+#	# only need this part if we want to be very robust
+#	sub	$a0, $s0, 1	# x - 1
+#	add	$a1, $s1, 1	# y + 1
+#	jal	get_value
+#	li	$t0, 2
+#	bne	$v0, $t0, q1_op3
+	move	$a0, $s0	# x
+	add	$a1, $s1, 1	# y + 1
+	jal	point_to
+	j	np_end
+
+quad_3:
+# TODO:
+	li	$t0, 1
+	bne	$v0, $t1, quad_2
+	sub	$a0, $s0, 1	# x - 1
+	move	$a1, $s1	# y
+	jal	get_value
+	# if point to left (x - 1, y) is in jetstream, point at it
+	li	$t0, 2
+	bne	$v0, $t0, q1_op2
+	sub	$a0, $s0, 1	# x - 1
+	move	$a1, $s1	# y
+	jal	point_to
+	j	np_end
+q1_op2:	# quadrant 1 option (candidate pixel) 2
+	sub	$a0, $s0, 1	# x - 1
+	add	$a1, $s1, 1	# y + 1
+	jal	get_value
+	li	$t0, 2
+	bne	$v0, $t0, q1_op3
+	sub	$a0, $s0, 1	# x - 1
+	add	$a1, $s1, 1	# y + 1
+	jal	point_to
+	j	np_end
+q1_op3:	# quadrant 1 option (candidate pixel) 3
+#	# test if the last point is in jetstream
+#	# only need this part if we want to be very robust
+#	sub	$a0, $s0, 1	# x - 1
+#	add	$a1, $s1, 1	# y + 1
+#	jal	get_value
+#	li	$t0, 2
+#	bne	$v0, $t0, q1_op3
+	move	$a0, $s0	# x
+	add	$a1, $s1, 1	# y + 1
+	jal	point_to
+	j	np_end
+
+quad_4:
+# TODO:
+	li	$t0, 1
+	bne	$v0, $t1, quad_2
+	sub	$a0, $s0, 1	# x - 1
+	move	$a1, $s1	# y
+	jal	get_value
+	# if point to left (x - 1, y) is in jetstream, point at it
+	li	$t0, 2
+	bne	$v0, $t0, q1_op2
+	sub	$a0, $s0, 1	# x - 1
+	move	$a1, $s1	# y
+	jal	point_to
+	j	np_end
+q1_op2:	# quadrant 1 option (candidate pixel) 2
+	sub	$a0, $s0, 1	# x - 1
+	add	$a1, $s1, 1	# y + 1
+	jal	get_value
+	li	$t0, 2
+	bne	$v0, $t0, q1_op3
+	sub	$a0, $s0, 1	# x - 1
+	add	$a1, $s1, 1	# y + 1
+	jal	point_to
+	j	np_end
+q1_op3:	# quadrant 1 option (candidate pixel) 3
+#	# test if the last point is in jetstream
+#	# only need this part if we want to be very robust
+#	sub	$a0, $s0, 1	# x - 1
+#	add	$a1, $s1, 1	# y + 1
+#	jal	get_value
+#	li	$t0, 2
+#	bne	$v0, $t0, q1_op3
+	move	$a0, $s0	# x
+	add	$a1, $s1, 1	# y + 1
+	jal	point_to
+	j	np_end
+
+np_end:
+	lw	$ra, 0($sp)
+	lw	$s0, 4($sp)
+	lw	$s1, 8($sp)
+	#add	$sp, $sp, #TODO:
+	add	$sp, $sp, 12
+	jr	$ra
+# ================================================================
+
+# *===============================================================
+# -----------------------------------------------------------------------
+# sb_arctan - computes the arctangent of y / x
+# $a0 - x
+# $a1 - y
+# returns the arctangent
+# -----------------------------------------------------------------------
+
+sb_arctan:
+	li	$v0, 0		# angle = 0;
+
+	abs	$t0, $a0	# get absolute values
+	abs	$t1, $a1
+	ble	$t1, $t0, no_TURN_90	  
+
+	## if (abs(y) > abs(x)) { rotate 90 degrees }
+	move	$t0, $a1	# int temp = y;
+	neg	$a1, $a0	# y = -x;      
+	move	$a0, $t0	# x = temp;    
+	li	$v0, 90		# angle = 90;  
+
+no_TURN_90:
+	bgez	$a0, pos_x 	# skip if (x >= 0)
+
+	## if (x < 0) 
+	add	$v0, $v0, 180	# angle += 180;
+
+pos_x:
+	mtc1	$a0, $f0
+	mtc1	$a1, $f1
+	cvt.s.w $f0, $f0	# convert from ints to floats
+	cvt.s.w $f1, $f1
+	
+	div.s	$f0, $f1, $f0	# float v = (float) y / (float) x;
+
+	mul.s	$f1, $f0, $f0	# v^^2
+	mul.s	$f2, $f1, $f0	# v^^3
+	l.s	$f3, three	# load 3.0
+	div.s 	$f3, $f2, $f3	# v^^3/3
+	sub.s	$f6, $f0, $f3	# v - v^^3/3
+
+	mul.s	$f4, $f1, $f2	# v^^5
+	l.s	$f5, five	# load 5.0
+	div.s 	$f5, $f4, $f5	# v^^5/5
+	add.s	$f6, $f6, $f5	# value = v - v^^3/3 + v^^5/5
+
+	l.s	$f8, PI		# load PI
+	div.s	$f6, $f6, $f8	# value / PI
+	l.s	$f7, F180	# load 180.0
+	mul.s	$f6, $f6, $f7	# 180.0 * value / PI
+
+	cvt.w.s $f6, $f6	# convert "delta" back to integer
+	mfc1	$t0, $f6
+	add	$v0, $v0, $t0	# angle += delta
+
+	jr 	$ra
+# ================================================================
 
 # === Interrupt Handler ===
 .kdata				# interrupt handler data (separated just for readability)
