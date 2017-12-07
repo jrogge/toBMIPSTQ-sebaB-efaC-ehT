@@ -78,7 +78,9 @@ main:
 	# set velocity = 10
 	li	$t0, 10
 	sw	$t0 VELOCITY
-        
+	li	$a0, 25
+	li	$a1, 25
+	jal	point_to 
 main_loop:
 	# note that we infinite loop to avoid stopping the simulation early
 	#lw      $t6, BOT_X              # x
@@ -287,7 +289,7 @@ next_point:
 	jal	determine_quad
 	# if quadrant == 1
 	li	$t0, 1
-	bne	$v0, $t1, quad_2
+	bne	$v0, $t0, quad_2
 	sub	$a0, $s0, 1	# x - 1
 	move	$a1, $s1	# y
 	jal	get_value
@@ -324,28 +326,28 @@ q1_op3:	# quadrant 1 option (candidate pixel) 3
 #TODO:
 quad_2:
 	li	$t0, 2
-	bne	$v0, $t1, quad_3
+	bne	$v0, $t0, quad_3
 	move	$a0, $s0	# x
 	sub	$a1, $s1, 1	# y - 1
 	jal	get_value
-	# if point to left (x, y - 1) is in jetstream, point at it
+	# if point above (x, y - 1) in jetstream, point at it
 	li	$t0, 2
-	bne	$v0, $t0, q1_op2
+	bne	$v0, $t0, q2_op2
 	sub	$a0, $s0, 1	# x - 1
 	move	$a1, $s1	# y
 	jal	point_to
 	j	np_end
-q1_op2:	# quadrant 1 option (candidate pixel) 2
+q2_op2:	# quadrant 2 option (candidate pixel) 2
 	sub	$a0, $s0, 1	# x - 1
-	add	$a1, $s1, 1	# y + 1
+	sub	$a1, $s1, 1	# y - 1
 	jal	get_value
 	li	$t0, 2
-	bne	$v0, $t0, q1_op3
+	bne	$v0, $t0, q2_op3
 	sub	$a0, $s0, 1	# x - 1
-	add	$a1, $s1, 1	# y + 1
+	add	$a1, $s1, 1	# y - 1
 	jal	point_to
 	j	np_end
-q1_op3:	# quadrant 1 option (candidate pixel) 3
+q2_op3:	# quadrant 2 option (candidate pixel) 3
 #	# test if the last point is in jetstream
 #	# only need this part if we want to be very robust
 #	sub	$a0, $s0, 1	# x - 1
@@ -353,36 +355,36 @@ q1_op3:	# quadrant 1 option (candidate pixel) 3
 #	jal	get_value
 #	li	$t0, 2
 #	bne	$v0, $t0, q1_op3
-	move	$a0, $s0	# x
-	add	$a1, $s1, 1	# y + 1
+	sub	$a0, $s0, 1	# x - 1
+	move	$a1, $s1	# y
 	jal	point_to
 	j	np_end
 
 quad_3:
 # TODO:
-	li	$t0, 1
-	bne	$v0, $t1, quad_2
-	sub	$a0, $s0, 1	# x - 1
+	li	$t0, 3
+	bne	$v0, $t0, quad_4
+	add	$a0, $s0, 1	# x + 1
 	move	$a1, $s1	# y
 	jal	get_value
-	# if point to left (x - 1, y) is in jetstream, point at it
+	# if point to right (x + 1, y) is in jetstream, point at it
 	li	$t0, 2
-	bne	$v0, $t0, q1_op2
-	sub	$a0, $s0, 1	# x - 1
+	bne	$v0, $t0, q3_op2
+	add	$a0, $s0, 1	# x + 1
 	move	$a1, $s1	# y
 	jal	point_to
 	j	np_end
-q1_op2:	# quadrant 1 option (candidate pixel) 2
-	sub	$a0, $s0, 1	# x - 1
-	add	$a1, $s1, 1	# y + 1
+q3_op2:	# quadrant 3 option (candidate pixel) 2
+	add	$a0, $s0, 1	# x + 1
+	sub	$a1, $s1, 1	# y - 1
 	jal	get_value
 	li	$t0, 2
-	bne	$v0, $t0, q1_op3
-	sub	$a0, $s0, 1	# x - 1
-	add	$a1, $s1, 1	# y + 1
+	bne	$v0, $t0, q3_op3
+	add	$a0, $s0, 1	# x + 1
+	sub	$a1, $s1, 1	# y - 1
 	jal	point_to
 	j	np_end
-q1_op3:	# quadrant 1 option (candidate pixel) 3
+q3_op3:	# quadrant 3 option (candidate pixel) 3
 #	# test if the last point is in jetstream
 #	# only need this part if we want to be very robust
 #	sub	$a0, $s0, 1	# x - 1
@@ -391,35 +393,35 @@ q1_op3:	# quadrant 1 option (candidate pixel) 3
 #	li	$t0, 2
 #	bne	$v0, $t0, q1_op3
 	move	$a0, $s0	# x
-	add	$a1, $s1, 1	# y + 1
+	sub	$a1, $s1, 1	# y - 1
 	jal	point_to
 	j	np_end
 
 quad_4:
 # TODO:
 	li	$t0, 1
-	bne	$v0, $t1, quad_2
-	sub	$a0, $s0, 1	# x - 1
-	move	$a1, $s1	# y
-	jal	get_value
-	# if point to left (x - 1, y) is in jetstream, point at it
-	li	$t0, 2
-	bne	$v0, $t0, q1_op2
-	sub	$a0, $s0, 1	# x - 1
-	move	$a1, $s1	# y
-	jal	point_to
-	j	np_end
-q1_op2:	# quadrant 1 option (candidate pixel) 2
-	sub	$a0, $s0, 1	# x - 1
+	bne	$v0, $t0, quad_2
+	move	$a0, $s0	# x
 	add	$a1, $s1, 1	# y + 1
 	jal	get_value
+	# if point below (x, y + 1) is in jetstream, point at it
 	li	$t0, 2
-	bne	$v0, $t0, q1_op3
-	sub	$a0, $s0, 1	# x - 1
+	bne	$v0, $t0, q4_op2
+	move	$a0, $s0	# x
 	add	$a1, $s1, 1	# y + 1
 	jal	point_to
 	j	np_end
-q1_op3:	# quadrant 1 option (candidate pixel) 3
+q4_op2:	# quadrant 4 option (candidate pixel) 2
+	add	$a0, $s0, 1	# x + 1
+	add	$a1, $s1, 1	# y + 1
+	jal	get_value
+	li	$t0, 2
+	bne	$v0, $t0, q4_op3
+	add	$a0, $s0, 1	# x + 1
+	add	$a1, $s1, 1	# y + 1
+	jal	point_to
+	j	np_end
+q4_op3:	# quadrant 4 option (candidate pixel) 3
 #	# test if the last point is in jetstream
 #	# only need this part if we want to be very robust
 #	sub	$a0, $s0, 1	# x - 1
@@ -427,8 +429,8 @@ q1_op3:	# quadrant 1 option (candidate pixel) 3
 #	jal	get_value
 #	li	$t0, 2
 #	bne	$v0, $t0, q1_op3
-	move	$a0, $s0	# x
-	add	$a1, $s1, 1	# y + 1
+	add	$a0, $s0, 1	# x + 1
+	move	$a1, $s1	# y
 	jal	point_to
 	j	np_end
 
