@@ -235,11 +235,11 @@ yequals: .asciiz ", y="
 expect:	.asciiz ".  Expected: "
 yougot:	.asciiz ", got: "
 ystring:
-	.word	30	52	30	5	-2	-170	-35	0
+	.word	30	52	30	5	-2	-170	-35	0	2
 xstring:
-	.word	60	30	-30	-30	-30	-30	30	30
+	.word	0	30	45	60	90	120	135	150	180
 answers:
-	.word	26	60	131	171	183	260	312	0
+	.word	100	86	70	50	0	-50	-70	-86	-100
 
 PRINT_INT = 0xffff0080
 
@@ -310,7 +310,7 @@ test2:
 	li	$a1, 100
 	#move	$a1, $s1
 	#jal	sb_arctan
-	jal	sb_sin
+	jal	sb_cos
 	move	$a0, $v0
 	li	$v0, 1
 	syscall			#print calculated answer
