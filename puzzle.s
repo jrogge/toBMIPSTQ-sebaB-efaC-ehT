@@ -44,15 +44,15 @@ REQUEST_PUZZLE_INT_MASK	= 0x800
 .data
 .align 2
 puzzle_data:	.space 216		#64 char encrypted array, 144 char key, 1 char rounds, 1 int
-.asciiz
+.align 0
 puzzle_key:	.space 144		#Key for puzzle
-.asciiz
+.align 0
 puzzle_encrypted:	.space 16	#Current encrypted string to be passed
-.asciiz
+.align 0
 puzzle_plaintext:	.space 64
-.asciiz
+.align 0
 puzzle_rounds:	.space 1		#Puzzle rounds
-.asciiz
+.align 0
 puzzle_solution: .space 80		#Maximum size of unique substr is 80, given in docs
 .align 2
 puzzle_flag:	.space 4		#Flag for whether puzzle can be solved
@@ -331,8 +331,8 @@ decrypt:
 
 	sub	$s7, $s6, 1		#k = round - 1
 
-for:
-	ble	$s7, $0, postFor
+decryptFor:
+	ble	$s7, $0, decryptPostFor
 	move	$a0, $s0
 	mul	$t0, $s7, 16		#16 * k
 	add	$t0, $t0, $s5		#&key[16*k]
@@ -353,9 +353,9 @@ for:
 	jal	inv_byte_substitution
 
 	sub	$s7, $s7, 1		#k--
-	j	for
+	j	decryptFor
 
-postFor:
+decryptPostFor:
 	move	$a0, $s0
 	move	$a1, $s5
 	move	$a2, $s4
@@ -370,16 +370,16 @@ postFor:
 
 	add	$sp, $sp, 64
 
-	r	$ra
+	jr	$ra
 
 ###MAX_UNIQUE_N_SUBSTR###
 nth_uniq_char:
-	bne	$a0, $0, postCond
-	bne	$a1, $0, postCond
+	bne	$a0, $0, nthPostCond
+	bne	$a1, $0, nthPostCond
 	li	$v0, -1
 	jr	$ra
 
-postCond:
+nthPostCond:
 	lbu	$t0, 0($a0)		#*in_str
 	la	$t7, uniq_chars		#Start address of uniq_chars
 	sb	$t0, 0($t7)		#Stores *in_str in uniq_chars[0]
@@ -387,71 +387,71 @@ postCond:
 	move	$t2, $0			#position = 0
 	add	$a0, $a0, 1		#Increments in_str
 	
-while:
-	bge	$t1, $a1, postWhile	#uniq_so_far < n
+nthWhile:
+	bge	$t1, $a1, nthPostWhile	#uniq_so_far < n
 	lbu	$t0, 0($a0)		#Get value of *in_str
-	beq	$t0, $0, postWhile	#Move on if *in_str is NULL
+	beq	$t0, $0, nthPostWhile	#Move on if *in_str is NULL
 	li	$t3, 1			#is_uniq = 1
 	move	$t4, $0			#j = 0
 
-innerFor:
-	bge	$t4, $t1, postFor	#j<uniq_so_far
+nthInnerFor:
+	bge	$t4, $t1, nthPostFor	#j<uniq_so_far
 	add	$t6, $t7, $t4		#Contains address of uniq_chars[j]
 	lbu	$t6, 0($t6)		#Value of uniq_chars[j]
-	bne	$t6, $t0, postInnerCond
+	bne	$t6, $t0, nthPostInnerCond
 	move	$t3, $0
-	j 	postFor
+	j 	nthPostFor
 
-postInnerCond:
+nthPostInnerCond:
 	add	$t4, $t4, 1
-	j	innerFor
+	j	nthInnerFor
 
-postFor:
-	beq	$t3, $0, postSecCond
+nthPostFor:
+	beq	$t3, $0, nthPostSecCond
 	add	$t6, $t7, $t1		#Address of uniq_chars[uniq_so_far]
 	sb	$t0, 0($t6)		#Stores *in_str in uniq_chars[uniq_so_far]
 	add	$t1, $t1, 1		#Increments uniq_so_far
 
-postSecCond:
+nthPostSecCond:
 	add	$t2, $t2, 1		#Increments position
 	add	$a0, $a0, 1		#Increments in_str
-	j	while
+	j	nthWhile
 
-postWhile:
-	bge	$t1, $a1, postFinalCond
+nthPostWhile:
+	bge	$t1, $a1, nthPostFinalCond
 	add	$t2, $t2, 1
 
-postFinalCond:
+nthPostFinalCond:
 	move	$v0, $t2
 	jr	$ra
 
 my_strlen:
 	lbu	$t0, 0($a0)		#Get the first char, if null, ret 0
-	bne	$t0, $0, postCond	#"Base case" of sorts
+	bne	$t0, $0, msPostCond	#"Base case" of sorts
 	move	$v0, $0
 	jr	$ra
 
-postCond:
+msPostCond:
 	move	$t0, $0			#Count
 
-whileLoop:
+msWhileLoop:
 	lbu	$t1, 0($a0)		#Get current char
-	beq	$t1, $0, postWhile	#Iterate while string is not null
+	beq	$t1, $0, msPostWhile	#Iterate while string is not null
 	add	$t0, $t0, 1
 	add	$a0, $a0, 1
-	j	whileLoop		#Jump to top of while loop
+	j	msWhileLoop		#Jump to top of while loop
 	
-postWhile:
+msPostWhile:
 	move	$v0, $t0
 	jr	$ra
 
 max_unique_n_substr:
-	bne	$a0, $0, postCond	#Base cases
-	bne	$a1, $0, postCond
-	bne	$a2, $0, postCond
+	bne	$a0, $0, munsPostCond	#Base cases
+	bne	$a1, $0, munsPostCond
+	bne	$a2, $0, munssPostCond
 	jr	$ra
 
-postCond:
+munssPostCond:
 	sub	$sp, $sp, 36		#Setup stack pointer
 	sw	$ra, 0($sp)		#Save return address
 	sw	$s0, 4($sp)		#in_str
@@ -471,22 +471,22 @@ postCond:
 	move	$s5, $v0		#len_in_str = my_strlen(in_str)
 	move	$s6, $0			#cur_pos = 0
 
-for:
-	bge	$s6, $s5, endFor	#Branch if cur_pos >= len_in_str
+munsFor:
+	bge	$s6, $s5, munsEndFor	#Branch if cur_pos >= len_in_str
 	add	$s7, $s0, $s6		#i = in_str + cur_pos
 	move	$a0, $s7		#Sets arg0 as i
 	add	$a1, $s2, 1		#Sets arg1 as n+1
 	jal	nth_uniq_char		#nth_uniq_char(i, n + 1)
 	move	$t0, $v0		#len_cur = nth_uniq_char(i, n + 1)
-	ble	$t0, $s4, postInnerCond
+	ble	$t0, $s4, munsPostInnerCond
 	move	$s4, $t0
 	move	$s3, $s7
 
-postInnerCond:
+munsPostInnerCond:
 	add	$s6, $s6, 1
-	j	for
+	j	msFor
 
-endFor:
+munssEndFor:
 	move	$a0, $s1
 	move	$a1, $s3
 	move	$a2, $s4
@@ -591,7 +591,7 @@ post_decrypt:
 	lw	$s7, 32($sp)
 	add	$sp, $sp, 36
 
-	j	$ra
+	jr	$ra
 
 main:
 	li	$t0, REQUEST_PUZZLE_INT_MASK		#Puzzle mask interrupt bit
