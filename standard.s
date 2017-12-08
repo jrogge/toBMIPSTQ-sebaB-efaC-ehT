@@ -87,6 +87,24 @@ main_loop:
 	# note that we infinite loop to avoid stopping the simulation early
 	#lw      $t6, BOT_X              # x
         #lw      $t7, BOT_Y              # y
+
+###     test mod function
+        li      $a0, 361
+        li      $a1, 360
+        jal     mod
+
+        li      $a0, -361
+        li      $a1, 360
+        jal     mod
+
+        li      $a0, -45
+        li      $a1, 360
+        jal     mod
+
+        li      $a0, 500
+        li      $a1, 360
+        jal     mod
+
 	jal	standard
 
 #        lb      $t0, 0($s7)             # if starcoins_ready
@@ -168,6 +186,35 @@ end_go_to:
 # ================================================================
 
 # *===============================================================
+# mod
+# $a0 = a
+# $a1 = b
+# returns a % b
+mod:
+        sub     $sp, $sp, 4
+        sw      $ra, 0($sp)
+        
+        ble     $a0, $a1, mod_else
+mod_first_while_loop:
+        ble     $a0, $a1, mod_end
+        sub     $a0, $a0, $a1
+        j       mod_first_while_loop
+
+mod_else:
+        bge     $a0, 0, mod_end
+mod_second_while_loop:
+        bge     $a0, $0, mod_end
+        add     $a0, $a0, $a1
+        j       mod_second_while_loop
+mod_end:
+        move    $v0, $a0
+
+        lw      $ra, 0($sp)
+        add     $sp, $sp, 4
+        jr      $ra
+# ================================================================
+
+# *===============================================================
 # standard 
 standard:
         sub     $sp, $sp, 20 
@@ -228,7 +275,10 @@ probe_main:
 probe_skip_neg:
         mul     $s1, $s0, 45 
         lw      $s0, ANGLE
-        add     $s1, $s1, $s0   # $s1 = angle = bot.angle + diff * 45
+        add     $a0, $s1, $s0   # $s1 = angle = bot.angle + diff * 45
+        li      $a1, 360
+        jal     mod
+        move    $s1, $v0
         lw      $s2, BOT_X      # $s2 = curr.x = bot.x
         lw      $s3, BOT_Y      # $s3 = curr.y = bot.y
         

@@ -22,6 +22,22 @@ void pointAt(x, y) {
 }
 
 /*
+ * assume a is no more than 
+ */
+int mod(int a, int b) {
+    if (a > b) {
+            while (a > b) {
+                a -= b;
+            }
+    }
+    else if (a < 0) {
+            while (a < 0) {
+                a += b;
+            }
+    }
+    return a;
+
+/*
  * returns the value of the position (x, y)
  * i.e. whether it's a black hole, jetstream, regular space point, etc
  * Do bananas and starcoins show up in jetstream map?
