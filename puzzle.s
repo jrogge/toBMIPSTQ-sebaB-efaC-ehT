@@ -523,19 +523,19 @@ get_key_loop:
 	bge	$s0, $s1, post_get_key
 	la	$s2, puzzle_data
 	add	$s2, $s2, $s0			#Get address of key char
-	lw	$s2, 0($s2)			#Current char
+	lbu	$s2, 0($s2)			#Current char
 	la	$s3, puzzle_key
-	sub	$s4, $s4, 64			#Get index of puzzle_key
-	add	$s3, $s4, $s4			#Address of puzzle_key at index
-	sw	$s2, 0($s3)			#Store into puzzle_key
+	sub	$s4, $s0, 64			#Get index of puzzle_key
+	add	$s3, $s3, $s4			#Address of puzzle_key at index
+	sb	$s2, 0($s3)			#Store into puzzle_key
 	add	$s0, $s0, 1
 	j	get_key_loop
 
 post_get_key:
 	la	$s0, puzzle_rounds
 	la	$s1, puzzle_data
-	lw	$s1, 208($s1)			#Number of rounds
-	sw	$s1, 0($s0)			#Store in puzzle_rounds
+	lbu	$s1, 208($s1)			#Number of rounds
+	sb	$s1, 0($s0)			#Store in puzzle_rounds
 
 	li	$s2, 4				#Num iterations of decrypt
 	li	$s3, 0				#Current decrypt iteration
@@ -551,10 +551,10 @@ get_encrypted_loop:
 	bge	$s0, $s1, post_get_encrypted
 	mul	$s5, $s3, 16			#Offset based on which decrypt iteration
 	add	$s5, $s5, $s0
-	add	$s5, $s6			#Address of index of puzzle_data for encrypted
-	lw	$s5, 0($s5)			#Current encrypted character
+	add	$s5, $s6, $s5			#Address of index of puzzle_data for encrypted
+	lbu	$s5, 0($s5)			#Current encrypted character
 	add	$s7, $s4, $s0			#Address of puzzle_encrypted at index
-	sw	$s5, 0($s7)			#Store encrypted character in puzzle_encrypted
+	sb	$s5, 0($s7)			#Store encrypted character in puzzle_encrypted
 	add	$s0, $s0, 1
 	j	get_encrypted_loop
 
@@ -594,7 +594,7 @@ post_decrypt:
 	jr	$ra
 
 main:
-	li	$t0, REQUEST_PUZZLE_INT_MASK		#Puzzle mask interrupt bit
+	li	$t4, REQUEST_PUZZLE_INT_MASK		#Puzzle mask interrupt bit
 	or	$t4, $t4, BONK_MASK
 	or	$t4, $t4, BONK_MASK
 	or	$t4, $t4, 1				#Global interrupt enable
@@ -617,6 +617,7 @@ main:
 
 puzzle_loop:
 	la	$t0, puzzle_flag
+	lw	$t0, 0($t0)
 	beq	$t0, 0, no_puzzle
 	jal	solve_puzzle
 
