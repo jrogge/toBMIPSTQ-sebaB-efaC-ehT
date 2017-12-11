@@ -52,6 +52,7 @@ event_horizon_data: .space 90000
 
 radar_flag: .space 1
 getting_coin: .space 1
+got_bonked: .space 1
 backtrack: .space 1
 bt_reached_corner: .space 1
 
@@ -113,6 +114,7 @@ main:
         lw      $s5, BOT_X      # $s2 = curr.x = bot.x
         lw      $s6, BOT_Y      # $s3 = curr.y = bot.y
 main_loop:
+        jal     check_need_recovery
 	la	$s0, getting_coin
 	lbu	$s0, 0($s0)
 	bne	$0, $s0, main_getting_coin
@@ -185,7 +187,7 @@ has_coin:
 	move	$t0, $v0
 
 	
-j	no_usable_coin # //TODO DELETE THIS SHIT
+#j	no_usable_coin # //TODO DELETE THIS SHIT
 #SKIPS VALUE CHECK
 	bne	$s4, 0xffffffff, skip_check_coin
 	j	no_usable_coin
@@ -1071,6 +1073,34 @@ pos_x:
 # ================================================================
 
 # *================================================================
+# check_need_recovery
+check_need_recovery:
+        la      $a0, getting_coin
+        beq     $a0, 1, check_need_recovery_kill
+        
+        sub     $sp, $sp, 4       
+        sw      $ra, 0($sp)
+ 
+        la      $a0, got_bonked
+        lb      $a1, 0($a0) 
+        bne     $a1, 1, check_need_recovery_end
+        li      $a1, 0
+        sb      $a1, 0($a0) 
+        #lw      $a0, BOT_X
+        #lw      $a1, BOT_Y
+        #jal     get_value
+        #beq     $v0, 2, check_need_recovery_end
+check_need_recovery_go:
+        jal     recovery
+check_need_recovery_end:
+        lw      $ra, 0($sp)
+        add     $sp, $sp, 4       
+check_need_recovery_kill:
+        jr      $ra
+
+# ================================================================
+
+# *================================================================
 # Press F12 to boot into ~recovery~ mode
 recovery:
         sub     $sp, $sp, 24 
@@ -1085,38 +1115,15 @@ recovery_main:
         li      $a0, 149 
         li      $a1, 149 
         jal     point_to
-        sw      $s1, ANGLE 
-
-        lw      $s2, BOT_X      # $s2 = curr.x = bot.x
-        lw      $s3, BOT_Y      # $s3 = curr.y = bot.y
+        li      $a0, 10
+        sw      $a0, VELOCITY
         
-        li      $s4, 1          # $s4 = i = 1
 recovery_loop:
-        move    $a0, $s2 
-        move    $a1, $s3 
-        jal     get_value 
-        beq     $v0, 2, recovery_end
-        beq     $v0, 0, recovery_turn_180          # turn if found black hole
-        bgt     $s4, 215, recovery_turn_180        # turn if never found jet
-               
-        move    $a0, $s1
-        move    $a1, $s4
-        jal     sb_cos
-        add     $s2, $s2, $v0        # curr.x += i * cos(angle) 
-        
-        move    $a0, $s1
-        move    $a1, $s4
-        jal     sb_sin
-        add     $s3, $s3, $v0        # curr.y += i * sin(angle) 
-        
-        add     $s4, 1
+        lw      $a0, BOT_X      # $s2 = curr.x = bot.x
+        lw      $a1, BOT_Y      # $s3 = curr.y = bot.y
+        jal     get_value
+        beq     $v0, 2, recovery_end 
         j       recovery_loop        
-
-recovery_turn_180:
-        li      $s2, 180
-        sw      $s2, ANGLE
-        li      $t0, 0
-        sw      $t0, ANGLE_CONTROL 
 recovery_end:
         move    $v0, $s2
         move    $v1, $s3
@@ -1239,9 +1246,9 @@ radar_interrupt:
 
 bonk_interrupt:
         sw      $a1, BONK_ACK
-
-        li      $a0, 0
-        sw      $a0, VELOCITY
+        la      $a1, got_bonked
+        li      $a0, 1
+        sb      $a0, 0($a1)
         j       interrupt_dispatch       # see if other interrupts are waiting
       
 timer_interrupt:
