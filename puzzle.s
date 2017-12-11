@@ -594,8 +594,7 @@ post_decrypt:
 	jr	$ra
 
 main:
-	li	$t4, REQUEST_PUZZLE_INT_MASK		#Puzzle mask interrupt bit
-	or	$t4, $t4, BONK_MASK
+	la	$t4, REQUEST_PUZZLE_INT_MASK		#Puzzle mask interrupt bit
 	or	$t4, $t4, BONK_MASK
 	or	$t4, $t4, 1				#Global interrupt enable
 	mtc0	$t4, $12
