@@ -53,9 +53,12 @@ event_horizon_data: .space 90000
 radar_flag: .space 1
 getting_coin: .space 1
 backtrack: .space 1
+bt_reached_corner: .space 1
 
 .align 2
 starcoin_count: .space 4
+backtrack_x: .space 4
+backtrack_y: .space 4
 
 .align 2
 target_coin: .space 8 #X, Y
@@ -92,7 +95,10 @@ main:
 	sb	$s0, 0($s1)
 	la	$s0, radar_map
 	sw	$s0, REQUEST_RADAR
+
 	la	$s0, backtrack
+	sb	$0, 0($s0)
+	la	$s0, bt_reached_corner
 	sb	$0, 0($s0)
 
 	# set velocity = 10
@@ -253,7 +259,7 @@ usable_coin:
 
 no_usable_coin:
 	la	$s0, radar_flag
-	sw	$0, 0($s0)
+	sb	$0, 0($s0)
 	la	$s0, radar_map
 	sw	$s0, REQUEST_RADAR
 finish_coin:
@@ -601,7 +607,44 @@ q1_op2:	# quadrant 1 option (candidate pixel) 2
 	bne	$v0, $0, q1_op3 #np_banana_found
 
 	la	$t0, backtrack
+	lbu	$t0, 0($t0)
+	beq	$t0, 0, q1_keep_bt	# if we aren't backtracking, point like normal
+	la	$t0, bt_reached_corner
+	lbu	$t0, 0($t0)
+	beq	$t0, 1, q1_check_past_corner	# if we're backtracking and we haven't reached the corner yet, we've reached corner
+	la	$t0, bt_reached_corner
+	li	$t1, 1
+	sb	$t1, 0($t0)		# we've reached corner, set bt_reached_corner to true
+	# set destX and destY	
+	lw	$t0, BOT_X
+	la	$t1, backtrack_x
+	sw	$t1, 0($t1)
+	lw	$t0, BOT_Y
+	la	$t1, backtrack_y
+	sw	$t1, 0($t1)
+	# point to that point
+	j	q1_keep_bt
+
+q1_check_past_corner: # backtracking and we've reached the corner
+	la	$t0, backtrack_x
+	lw	$t0, 0($t0)
+	lw	$t1, BOT_X
+	bne	$t0, $t1, q1_stop_bt # if we've reached the corner and either x or y has changed, stop backtracking
+	la	$t0, backtrack_y
+	lw	$t0, 0($t0)
+	lw	$t1, BOT_Y
+	bne	$t0, $t1, q1_stop_bt # if we've reached the corner and either x or y has changed, stop backtracking
+	j	q1_keep_bt
+q1_stop_bt:
+	# only do this if we've reached the corner and x and y have changed
+	la	$t0, backtrack
 	sb	$0, 0($t0)	# backtracking = false
+	la	$t0, bt_reached_corner
+	sb	$0, 0($t0)	# reached corner = false
+q1_keep_bt:
+
+	move	$a0, $s0	# x
+	add	$a1, $s1, $s2	# y + 1
 	jal	point_to
 	j	np_end
 q1_op3:
@@ -650,7 +693,44 @@ q2_op2:	# quadrant 2 option (candidate pixel) 2
 	bne	$v0, $0, q2_op3
 
 	la	$t0, backtrack
+	lbu	$t0, 0($t0)
+	beq	$t0, 0, q2_keep_bt	# if we aren't backtracking, point like normal
+	la	$t0, bt_reached_corner
+	lbu	$t0, 0($t0)
+	beq	$t0, 1, q2_check_past_corner	# if we're backtracking and we haven't reached the corner yet, we've reached corner
+	la	$t0, bt_reached_corner
+	li	$t1, 1
+	sb	$t1, 0($t0)		# we've reached corner, set bt_reached_corner to true
+	# set destX and destY	
+	lw	$t0, BOT_X
+	la	$t1, backtrack_x
+	sw	$t1, 0($t1)
+	lw	$t0, BOT_Y
+	la	$t1, backtrack_y
+	sw	$t1, 0($t1)
+	# point to that point
+	j	q2_keep_bt
+
+q2_check_past_corner: # backtracking and we've reached the corner
+	la	$t0, backtrack_x
+	lw	$t0, 0($t0)
+	lw	$t1, BOT_X
+	bne	$t0, $t1, q2_stop_bt # if we've reached the corner and either x or y has changed, stop backtracking
+	la	$t0, backtrack_y
+	lw	$t0, 0($t0)
+	lw	$t1, BOT_Y
+	bne	$t0, $t1, q2_stop_bt # if we've reached the corner and either x or y has changed, stop backtracking
+	j	q2_keep_bt
+q2_stop_bt:
+	# only do this if we've reached the corner and x and y have changed
+	la	$t0, backtrack
 	sb	$0, 0($t0)	# backtracking = false
+	la	$t0, bt_reached_corner
+	sb	$0, 0($t0)	# reached corner = false
+q2_keep_bt:
+
+	sub	$a0, $s0, $s2	# x - 1
+	move	$a1, $s1	# y
 	jal	point_to
 	j	np_end
 q2_op3:
@@ -689,7 +769,44 @@ q3_op2:	# quadrant 3 option (candidate pixel) 3
 	bne	$v0, $0, q3_op3
 
 	la	$t0, backtrack
+	lbu	$t0, 0($t0)
+	beq	$t0, 0, q3_keep_bt	# if we aren't backtracking, point like normal
+	la	$t0, bt_reached_corner
+	lbu	$t0, 0($t0)
+	beq	$t0, 1, q3_check_past_corner	# if we're backtracking and we haven't reached the corner yet, we've reached corner
+	la	$t0, bt_reached_corner
+	li	$t1, 1
+	sb	$t1, 0($t0)		# we've reached corner, set bt_reached_corner to true
+	# set destX and destY	
+	lw	$t0, BOT_X
+	la	$t1, backtrack_x
+	sw	$t1, 0($t1)
+	lw	$t0, BOT_Y
+	la	$t1, backtrack_y
+	sw	$t1, 0($t1)
+	# point to that point
+	j	q3_keep_bt
+
+q3_check_past_corner: # backtracking and we've reached the corner
+	la	$t0, backtrack_x
+	lw	$t0, 0($t0)
+	lw	$t1, BOT_X
+	bne	$t0, $t1, q3_stop_bt # if we've reached the corner and either x or y has changed, stop backtracking
+	la	$t0, backtrack_y
+	lw	$t0, 0($t0)
+	lw	$t1, BOT_Y
+	bne	$t0, $t1, q3_stop_bt # if we've reached the corner and either x or y has changed, stop backtracking
+	j	q3_keep_bt
+q3_stop_bt:
+	# only do this if we've reached the corner and x and y have changed
+	la	$t0, backtrack
 	sb	$0, 0($t0)	# backtracking = false
+	la	$t0, bt_reached_corner
+	sb	$0, 0($t0)	# reached corner = false
+q3_keep_bt:
+
+	move	$a0, $s0	# x
+	sub	$a1, $s1, $s2	# y - 1
 	jal	point_to
 	j	np_end
 q3_op3:
@@ -729,7 +846,44 @@ q4_op2:	# quadrant 4 option (candidate pixel) 2
 	bne	$v0, $0, q4_op3
 
 	la	$t0, backtrack
+	lbu	$t0, 0($t0)
+	beq	$t0, 0, q4_keep_bt	# if we aren't backtracking, point like normal
+	la	$t0, bt_reached_corner
+	lbu	$t0, 0($t0)
+	beq	$t0, 1, q4_check_past_corner	# if we're backtracking and we haven't reached the corner yet, we've reached corner
+	la	$t0, bt_reached_corner
+	li	$t1, 1
+	sb	$t1, 0($t0)		# we've reached corner, set bt_reached_corner to true
+	# set destX and destY	
+	lw	$t0, BOT_X
+	la	$t1, backtrack_x
+	sw	$t1, 0($t1)
+	lw	$t0, BOT_Y
+	la	$t1, backtrack_y
+	sw	$t1, 0($t1)
+	# point to that point
+	j	q4_keep_bt
+
+q4_check_past_corner: # backtracking and we've reached the corner
+	la	$t0, backtrack_x
+	lw	$t0, 0($t0)
+	lw	$t1, BOT_X
+	bne	$t0, $t1, q4_stop_bt # if we've reached the corner and either x or y has changed, stop backtracking
+	la	$t0, backtrack_y
+	lw	$t0, 0($t0)
+	lw	$t1, BOT_Y
+	bne	$t0, $t1, q4_stop_bt # if we've reached the corner and either x or y has changed, stop backtracking
+	j	q4_keep_bt
+q4_stop_bt:
+	# only do this if we've reached the corner and x and y have changed
+	la	$t0, backtrack
 	sb	$0, 0($t0)	# backtracking = false
+	la	$t0, bt_reached_corner
+	sb	$0, 0($t0)	# reached corner = false
+q4_keep_bt:
+
+	add	$a0, $s0, $s2	# x + 1
+	move	$a1, $s1	# y
 	jal	point_to
 	j	np_end
 
@@ -1021,10 +1175,10 @@ banana_at_point_loop:
         sub     $s3, $a0, $s3           # aX - bX
         sub     $s2, $a1, $s2           # aY - bY
         
-        bgt     $s3, 4, banana_at_point_loop
-        blt     $s3,-4, banana_at_point_loop
-        bgt     $s2, 4, banana_at_point_loop
-        blt     $s2,-4, banana_at_point_loop    # no risk if |dist| > 4 on either axis
+        bgt     $s3, 5, banana_at_point_loop
+        blt     $s3,-5, banana_at_point_loop
+        bgt     $s2, 5, banana_at_point_loop
+        blt     $s2,-5, banana_at_point_loop    # no risk if |dist| > 4 on either axis
         
         li      $v0, 1      # if we reach here, banana intersects point 
                  
@@ -1080,7 +1234,7 @@ radar_interrupt:
         sw      $a1, REQUEST_RADAR_ACK 
 	li	$a0, 1
 	la	$a1, radar_flag
-	sw	$a0, 0($a1)
+	sb	$a0, 0($a1)
         j       interrupt_dispatch               # go back to handler
 
 bonk_interrupt:
