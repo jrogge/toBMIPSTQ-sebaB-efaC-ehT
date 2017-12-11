@@ -168,6 +168,7 @@ got_coin_finish:
 	lw	$s2, 12($sp)
 	add	$sp, $sp, 16
 	jr	$ra
+
 ###COIN METHOD###
 has_coin:
         sub     $sp, $sp, 36
@@ -182,66 +183,35 @@ has_coin:
         sw      $s7, 32($sp)
 
 	la	$s0, radar_map
-	lw	$s4, 0($s0)
+	lw	$s1, 0($s0)
 	jal	determine_quad
 	move	$t0, $v0
 
-	
 #j	no_usable_coin # //TODO DELETE THIS SHIT
 #SKIPS VALUE CHECK
-	bne	$s4, 0xffffffff, skip_check_coin
-	j	no_usable_coin
+#	bne	$s4, 0xffffffff, skip_check_coin
+#	j	no_usable_coin
 #SEARCHES FOR COIN WITH GOOD VALUES
 find_coin_loop:
 	beq	$s1, 0xffffffff, no_usable_coin
 	and	$s2, $s1, 0x0000ffff			#Y value
 	and	$s3, $s1, 0xffff0000
 	srl	$s3, $s3, 16				#X value
-	li	$t1, 1
-	beq	$t0, $t1, quad1_coin_check
-	li	$t1, 2
-	beq	$t0, $t1, quad2_coin_check
-	li	$t1, 3
-	beq	$t0, $t1, quad3_coin_check
-
-quad4_coin_check:
-	bgt	$s3, $s6, q4_cc_cond1
-	j	usable_coin
-q4_cc_cond1:
-	blt	$s2, $s7, get_next_coin
-	j	usable_coin
-
-quad1_coin_check:
-	blt	$s3, $s6, q1_cc_cond1
-	j	usable_coin
-q1_cc_cond1:
-	blt	$s2, $s7, get_next_coin
-	j	usable_coin
-
-quad2_coin_check:
-	blt	$s3, $s6, q2_cc_cond1
-	j	usable_coin
-q2_cc_cond1:
-	bgt	$s2, $s7, get_next_coin
-	j	usable_coin
-
-quad3_coin_check:
-	bgt	$s2, $s7, q3_cc_cond1
-	j	usable_coin
-q3_cc_cond1:
-	bgt	$s3, $s6, get_next_coin
-	j	usable_coin
-
+	move	$a0, $s3
+	move	$a1, $s2
+	jal	get_value
+	move	$s4, $v0
+	beq	$s4, 2, coin_in_jetstream
 get_next_coin:
 	add	$s0, $s0, 4
 	lw	$s1, 0($s0)
 	j	find_coin_loop
-
+coin_in_jetstream:
+	j	usable_coin
 skip_check_coin:
-	and	$s2, $s4, 0x0000ffff
-	and	$s3, $s4, 0xffff0000
+	and	$s2, $s1, 0x0000ffff
+	and	$s3, $s1, 0xffff0000
 	srl	$s3, $s3, 16
-
 usable_coin:
 	#li	$t0, 10
 	#sw	$t0, VELOCITY
@@ -258,7 +228,6 @@ usable_coin:
 	la	$s6, starcoin_count
 	sw	$s5, 0($s6)
 	j	finish_coin
-
 no_usable_coin:
 	la	$s0, radar_flag
 	sb	$0, 0($s0)
