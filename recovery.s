@@ -80,12 +80,13 @@ main:
 # *================================================================
 # Press F12 to boot into ~recovery~ mode
 recovery:
-        sub     $sp, $sp, 20 
+        sub     $sp, $sp, 24 
         sw      $ra, 0($sp)
         sw      $s0, 4($sp)
         sw      $s1, 8($sp)
         sw      $s2, 12($sp)
         sw      $s3, 16($sp)
+        sw      $s4, 20($sp)
 
 recovery_main:
         li      $a0, 149 
@@ -113,7 +114,6 @@ recovery_loop:
         move    $a0, $s1
         move    $a1, $s4
         jal     sb_sin
-        move    $s5, $v0 
         add     $s3, $s3, $v0        # curr.y += i * sin(angle) 
         
         add     $s4, 1
@@ -133,7 +133,8 @@ recovery_end:
         lw      $s1, 8($sp)
         lw      $s2, 12($sp)
         lw      $s3, 16($sp)
-        add     $sp, $sp, 20
+        lw      $s4, 20($sp)
+        add     $sp, $sp, 24
         
         jr      $ra
 
