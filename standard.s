@@ -60,6 +60,7 @@ starcoins_map: .space 512
 
 
 main:
+        #jal test
         sub     $sp, $sp, 36
         sw      $ra, 0($sp)
         sw      $s0, 4($sp)
@@ -79,7 +80,7 @@ main:
 	li	$t0, 1
 	sw	$t0 VELOCITY
 
-        li      $t0, 300
+        li      $t0, 0
         sw      $t0, ANGLE
         li      $t0, 1
         sw      $t0, ANGLE_CONTROL
@@ -186,6 +187,27 @@ end_go_to:
 # ================================================================
 
 # *===============================================================
+# test 
+test:
+        li      $a0, 25 
+        li      $a1, 100  
+        jal     sb_sin
+        li      $a0, -25 
+        li      $a1, 100
+        jal     sb_sin
+        li      $a0, 140
+        li      $a1, 100
+        jal     sb_sin
+        li      $a0, -140
+        li      $a1, 100
+        jal     sb_sin
+
+# ================================================================
+
+
+
+
+# *===============================================================
 # mod
 # $a0 = a
 # $a1 = b
@@ -217,14 +239,19 @@ mod_end:
 # *===============================================================
 # standard 
 standard:
-        sub     $sp, $sp, 20 
+        sub     $sp, $sp, 24 
         sw      $ra, 0($sp)
         sw      $s0, 4($sp)
         sw      $s1, 8($sp)
         sw      $s2, 12($sp)
         sw      $s3, 16($sp)
+        sw      $s4, 20($sp)
 
 standard_main:
+
+        lw      $t0, BOT_X      # $s2 = curr.x = bot.x
+        lw      $t1, BOT_Y      # $s3 = curr.y = bot.y
+
         li      $a0, 0
         jal     get_probe
         move    $s0, $v0        # $s0 = p_left.x
@@ -242,7 +269,7 @@ standard_main:
         move    $a0, $s0
         move    $a1, $s1
         jal     point_to
-        
+        lw      $s4, ANGLE
         j       standard_main        
 standard_end:
         lw      $ra, 0($sp)
@@ -250,7 +277,8 @@ standard_end:
         lw      $s1, 8($sp)
         lw      $s2, 12($sp)
         lw      $s3, 16($sp)
-        add     $sp, $sp, 20
+        lw      $s4, 20($sp)
+        add     $sp, $sp, 24
         
         jr      $ra
 
@@ -275,10 +303,16 @@ probe_main:
 probe_skip_neg:
         mul     $s1, $s0, 45 
         lw      $s0, ANGLE
-        add     $a0, $s1, $s0   # $s1 = angle = bot.angle + diff * 45
+        #add     $s1, $s1, $s0   # $s1 = angle = bot.angle + diff * 45
+        add     $s1, $s1, $s0   # $s1 = angle = bot.angle + diff * 45
+        ble     $s1, 360, probe_skip_mod
+probe_do_mod:
+        move    $a0, $s1
         li      $a1, 360
         jal     mod
         move    $s1, $v0
+probe_skip_mod:
+        blt     $s1, -360, probe_do_mod
         lw      $s2, BOT_X      # $s2 = curr.x = bot.x
         lw      $s3, BOT_Y      # $s3 = curr.y = bot.y
         
@@ -475,7 +509,7 @@ get_value:
 # ================================================================
 
 # *===============================================================
-# sets our boy flying off to a specified point
+# sets our boi flying off to a specified point
 # $a0 = destX
 # #a1 = destY
 # no return value, set angle within funct
@@ -486,14 +520,16 @@ point_to:
         sw      $s1, 8($sp)
         sw      $s2, 12($sp)
 
-        lw      $s0, BOT_X              # $s0 = x
-        lw      $s1, BOT_Y              # $s1 = y
+        # TODO: change back to s0 and s1 resp
+        lw      $t2, BOT_X              # $s0 = x
+        lw      $t3, BOT_Y              # $s1 = y
 
-        sub     $s0, $a0, $s0           # $s0 = deltaX
-        sub     $s1, $a1, $s1           # $s1 = deltaY
-
+        sub     $s0, $a0, $t2           # $s0 = deltaX
+        sub     $s1, $a1, $t3           # $s1 = deltaY
+                
         # make sure we don't divide by 0
         bne     $s0, $0, valid_quotient # if deltaX == 0
+        #beq     $s1, $0, point_to_kill # if deltaY == 0
         blt     $s1, $0, point_up       # if deltaY > 0
         li      $s2, 90                 # set angle = 90
         j       end_point
@@ -509,7 +545,7 @@ end_point:
         sw      $s2, ANGLE
         li      $t0, 1
         sw      $t0, ANGLE_CONTROL
-        
+point_to_kill: 
         lw      $ra, 0($sp)
         lw      $s0, 4($sp)
         lw      $s1, 8($sp)
