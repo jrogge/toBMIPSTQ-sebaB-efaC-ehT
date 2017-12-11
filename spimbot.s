@@ -52,6 +52,7 @@ event_horizon_data: .space 90000
 
 radar_flag: .space 1
 getting_coin: .space 1
+backtrack: .space 1
 
 .align 2
 starcoin_count: .space 4
@@ -91,9 +92,11 @@ main:
 	sb	$s0, 0($s1)
 	la	$s0, radar_map
 	sw	$s0, REQUEST_RADAR
+	la	$s0, backtrack
+	sb	$0, 0($s0)
 
 	# set velocity = 10
-	li	$t0, 1 
+	li	$t0, 10
 	sw	$t0 VELOCITY
 
         li      $t0, 0
@@ -570,6 +573,9 @@ next_point:
 	jal	point_to
 	j	np_end
 np_quad_1:
+	la	$t0, backtrack
+	lbu	$t0, 0($t0)	# backtracking
+	beq	$t0, 1, q1_op2	# if we're backtracking, don't try to go in the optimal 
 	sub	$a0, $s0, $s2	# x - 1
 	move	$a1, $s1	# y
 	jal	get_value
@@ -591,10 +597,36 @@ np_quad_1:
 q1_op2:	# quadrant 1 option (candidate pixel) 2
 	move	$a0, $s0	# x
 	add	$a1, $s1, $s2	# y + 1
+	jal	banana_at_point
+	bne	$v0, $0, q1_op3 #np_banana_found
+
+	la	$t0, backtrack
+	sb	$0, 0($t0)	# backtracking = false
+	jal	point_to
+	j	np_end
+q1_op3:
+	la	$t0, backtrack
+	li	$t1, 1
+	sb	$t1, 0($t0)	# backtracking
+	add	$a0, $s0, 1	# x + 1
+	move	$a1, $s1	# y
+	#	jal	get_value
+	#	# if point to left (x - 1, y) is in jetstream, point at it
+	#	li	$t0, 2
+	#	bne	$v0, $t0, q1_op3
+	#
+	#	move	$a0, $s0	# x
+	#	add	$a1, $s1, $s2	# y + 1
+	#	jal	banana_at_point
+	#	bne	$v0, $0, q1_op2 #np_banana_found
+
 	jal	point_to
 	j	np_end
 
 np_quad_2:
+	la	$t0, backtrack
+	lbu	$t0, 0($t0)	# backtracking
+	beq	$t0, 1, q2_op2	# if we're backtracking, don't try to go in the optimal 
 	move	$a0, $s0	# x
 	sub	$a1, $s1, $s2	# y - 1
 	jal	get_value
@@ -614,14 +646,29 @@ np_quad_2:
 q2_op2:	# quadrant 2 option (candidate pixel) 2
 	sub	$a0, $s0, $s2	# x - 1
 	move	$a1, $s1	# y
+	jal	banana_at_point
+	bne	$v0, $0, q2_op3
+
+	la	$t0, backtrack
+	sb	$0, 0($t0)	# backtracking = false
+	jal	point_to
+	j	np_end
+q2_op3:
+	la	$t0, backtrack
+	li	$t1, 1
+	sb	$t1, 0($t0)	# backtracking
+	move	$a0, $s0	# x
+	add	$a1, $s1, 1	# y + 1
 	jal	point_to
 	j	np_end
 
 np_quad_3:
+	la	$t0, backtrack
+	lbu	$t0, 0($t0)	# backtracking
+	beq	$t0, 1, q3_op2	# if we're backtracking, don't try to go in the optimal 
 	add	$a0, $s0, $s2	# x + 1
 	move	$a1, $s1	# y
 	jal	get_value
-	# if point to right (x + 1, y) is in jetstream, point at it
 	li	$t0, 2
 	bne	$v0, $t0, q3_op2
 
@@ -638,10 +685,27 @@ np_quad_3:
 q3_op2:	# quadrant 3 option (candidate pixel) 3
 	move	$a0, $s0	# x
 	sub	$a1, $s1, $s2	# y - 1
+	jal	banana_at_point
+	bne	$v0, $0, q3_op3
+
+	la	$t0, backtrack
+	sb	$0, 0($t0)	# backtracking = false
+	jal	point_to
+	j	np_end
+q3_op3:
+	la	$t0, backtrack
+	li	$t1, 1
+	sb	$t1, 0($t0)	# backtracking
+
+	sub	$a0, $s0, 1	# x - 1
+	move	$a1, $s1
 	jal	point_to
 	j	np_end
 
 np_quad_4:
+	la	$t0, backtrack
+	lbu	$t0, 0($t0)	# backtracking
+	beq	$t0, 1, q4_op2	# if we're backtracking, don't try to go in the optimal 
 	move	$a0, $s0	# x
 	add	$a1, $s1, $s2	# y + 1
 	jal	get_value
@@ -661,6 +725,21 @@ np_quad_4:
 q4_op2:	# quadrant 4 option (candidate pixel) 2
 	add	$a0, $s0, $s2	# x + 1
 	move	$a1, $s1	# y
+	jal	banana_at_point
+	bne	$v0, $0, q4_op3
+
+	la	$t0, backtrack
+	sb	$0, 0($t0)	# backtracking = false
+	jal	point_to
+	j	np_end
+
+q4_op3:
+	la	$t0, backtrack
+	li	$t1, 1
+	sb	$t1, 0($t0)	# backtracking
+
+	move	$a0, $s0	# x
+	sub	$a1, $s1, 1	# y - 1
 	jal	point_to
 	j	np_end
 
@@ -836,6 +915,69 @@ pos_x:
 
 	jr 	$ra
 # ================================================================
+
+# *================================================================
+# Press F12 to boot into ~recovery~ mode
+recovery:
+        sub     $sp, $sp, 24 
+        sw      $ra, 0($sp)
+        sw      $s0, 4($sp)
+        sw      $s1, 8($sp)
+        sw      $s2, 12($sp)
+        sw      $s3, 16($sp)
+        sw      $s4, 20($sp)
+
+recovery_main:
+        li      $a0, 149 
+        li      $a1, 149 
+        jal     point_to
+        sw      $s1, ANGLE 
+
+        lw      $s2, BOT_X      # $s2 = curr.x = bot.x
+        lw      $s3, BOT_Y      # $s3 = curr.y = bot.y
+        
+        li      $s4, 1          # $s4 = i = 1
+recovery_loop:
+        move    $a0, $s2 
+        move    $a1, $s3 
+        jal     get_value 
+        beq     $v0, 2, recovery_end
+        beq     $v0, 0, recovery_turn_180          # turn if found black hole
+        bgt     $s4, 215, recovery_turn_180        # turn if never found jet
+               
+        move    $a0, $s1
+        move    $a1, $s4
+        jal     sb_cos
+        add     $s2, $s2, $v0        # curr.x += i * cos(angle) 
+        
+        move    $a0, $s1
+        move    $a1, $s4
+        jal     sb_sin
+        add     $s3, $s3, $v0        # curr.y += i * sin(angle) 
+        
+        add     $s4, 1
+        j       recovery_loop        
+
+recovery_turn_180:
+        li      $s2, 180
+        sw      $s2, ANGLE
+        li      $t0, 0
+        sw      $t0, ANGLE_CONTROL 
+recovery_end:
+        move    $v0, $s2
+        move    $v1, $s3
+
+        lw      $ra, 0($sp)
+        lw      $s0, 4($sp)
+        lw      $s1, 8($sp)
+        lw      $s2, 12($sp)
+        lw      $s3, 16($sp)
+        lw      $s4, 20($sp)
+        add     $sp, $sp, 24
+        
+        jr      $ra
+
+# =================================================================
 
 # *=====================================================================
 # banana_at_point
