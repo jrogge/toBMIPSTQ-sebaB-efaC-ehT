@@ -8,3 +8,6 @@
 * add banana check for get_coin
 * add banana check for recover
 * fix standard banana avoidance
+
+super dodge seed
+	1513034030
