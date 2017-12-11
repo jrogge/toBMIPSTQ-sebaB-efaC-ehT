@@ -85,8 +85,17 @@ main:
         li      $t0, 1
         sw      $t0, ANGLE_CONTROL
 
-        lw      $s5, BOT_X      # $s2 = curr.x = bot.x
-        lw      $s6, BOT_Y      # $s3 = curr.y = bot.y
+	#go_ocean_loop:
+	#	li	$a0, 100
+	#	li	$a1, 150
+	#	jal	point_to
+	#	lw	$s5, BOT_X
+	#	lw	$s6, BOT_Y
+	#	bne	$s5, 100, go_ocean_loop
+	#	bne	$s6, 150, go_ocean_loop
+
+	lw	$s5, BOT_X
+	lw	$s6, BOT_Y
 main_loop:
 
         lw      $t0, BOT_X      # $s2 = curr.x = bot.x
@@ -713,106 +722,106 @@ np_end:
 # no parameters
 # no return
 # points the spimbot in the direction of the next pixel along the inner edge of jetstream
-	#circle_black_hole:
-	#	#sub	$sp, $sp, #TODO:
-	#	sub	$sp, $sp, 16
-	#	sw	$ra, 0($sp)
-	#	sw	$s0, 4($sp)
-	#	sw	$s1, 8($sp)
-	#	sw	$s2, 12($sp)
-	#
-	#	lw	$s0, BOT_X
-	#	lw	$s1, BOT_Y
-	#	li	$s2, 1
-	#
-	#	jal	determine_quad
-	#	beq	$v0, 1, np_quad_1
-	#	beq	$v0, 2, np_quad_2
-	#	beq	$v0, 3, np_quad_3
-	#	beq	$v0, 4, np_quad_4
-	#	# we should never get to this point
-	#	# point at point 0,0 to indicate we got here
-	#	move	$a0, $0
-	#	move	$a1, $0
-	#	jal	point_to
-	#	j	np_end
-	#np_quad_1:
-	#	sub	$a0, $s0, $s2	# x - 1
-	#	move	$a1, $s1	# y
-	#	jal	get_value
-	#	# if point to left (x - 1, y) is in jetstream, point at it
-	#	li	$t0, 2
-	#	bne	$v0, $t0, q1_op2
-	#	sub	$a0, $s0, $s2	# x - 1
-	#	move	$a1, $s1	# y
-	#	jal	point_to
-	#	j	np_end
-	#q1_op2:	# quadrant 1 option (candidate pixel) 2
-	#	move	$a0, $s0	# x
-	#	add	$a1, $s1, $s2	# y + 1
-	#	jal	point_to
-	#	j	np_end
-	#
-	#np_quad_2:
-	#	move	$a0, $s0	# x
-	#	sub	$a1, $s1, $s2	# y - 1
-	#	jal	get_value
-	#	# if point above (x, y - 1) in jetstream, point at it
-	#	li	$t0, 2
-	#	bne	$v0, $t0, q2_op2
-	#	move	$a0, $s0	# x
-	#	sub	$a1, $s1, $s2	# y - 1
-	#	jal	point_to
-	#	j	np_end
-	#q2_op2:	# quadrant 2 option (candidate pixel) 2
-	#	sub	$a0, $s0, $s2	# x - 1
-	#	move	$a1, $s1	# y
-	#	jal	point_to
-	#	j	np_end
-	#
-	#np_quad_3:
-	#	add	$a0, $s0, $s2	# x + 1
-	#	move	$a1, $s1	# y
-	#	jal	get_value
-	#	# if point to right (x + 1, y) is in jetstream, point at it
-	#	li	$t0, 2
-	#	bne	$v0, $t0, q3_op2
-	#	add	$a0, $s0, $s2	# x + 1
-	#	move	$a1, $s1	# y
-	#	jal	point_to
-	#	j	np_end
-	#
-	#q3_op2:	# quadrant 3 option (candidate pixel) 3
-	#	move	$a0, $s0	# x
-	#	sub	$a1, $s1, $s2	# y - 1
-	#	jal	point_to
-	#	j	np_end
-	#
-	#np_quad_4:
-	#	move	$a0, $s0	# x
-	#	add	$a1, $s1, $s2	# y + 1
-	#	jal	get_value
-	#	# if point below (x, y + 1) is in jetstream, point at it
-	#	li	$t0, 2
-	#	bne	$v0, $t0, q4_op2
-	#	move	$a0, $s0	# x
-	#	add	$a1, $s1, $s2	# y + 1
-	#	jal	point_to
-	#	j	np_end
-	#q4_op2:	# quadrant 4 option (candidate pixel) 2
-	#	add	$a0, $s0, $s2	# x + 1
-	#	move	$a1, $s1	# y
-	#	jal	point_to
-	#	j	np_end
-	#
-	#np_end:
-	#	lw	$ra, 0($sp)
-	#	lw	$s0, 4($sp)
-	#	lw	$s1, 8($sp)
-	#	lw	$s2, 12($sp)
-	#	add	$sp, $sp, 16
-	#	jr	$ra
-	## ================================================================
+circle_black_hole:
+	#sub	$sp, $sp, #TODO:
+	sub	$sp, $sp, 16
+	sw	$ra, 0($sp)
+	sw	$s0, 4($sp)
+	sw	$s1, 8($sp)
+	sw	$s2, 12($sp)
+
+	lw	$s0, BOT_X
+	lw	$s1, BOT_Y
+	li	$s2, 1
+
+	jal	determine_quad
+	beq	$v0, 1, cbh_quad_1
+	beq	$v0, 2, cbh_quad_2
+	beq	$v0, 3, cbh_quad_3
+	beq	$v0, 4, cbh_quad_4
+	# we should never get to this point
+	# point at point 0,0 to indicate we got here
+	move	$a0, $0
+	move	$a1, $0
+	jal	point_to
+	j	cbh_end
+cbh_quad_1:
+	sub	$a0, $s0, $s2	# x - 1
+	move	$a1, $s1	# y
+	jal	get_value
+	# if point to left (x - 1, y) is in jetstream, point at it
+	li	$t0, 1
+	bne	$v0, $t0, cbh_q1_op2
+	sub	$a0, $s0, $s2	# x - 1
+	move	$a1, $s1	# y
+	jal	point_to
+	j	cbh_end
+cbh_q1_op2:	# quadrant 1 option (candidate pixel) 2
+	move	$a0, $s0	# x
+	add	$a1, $s1, $s2	# y + 1
+	jal	point_to
+	j	cbh_end
+
+cbh_quad_2:
+	move	$a0, $s0	# x
+	sub	$a1, $s1, $s2	# y - 1
+	jal	get_value
+	# if point above (x, y - 1) in jetstream, point at it
+	li	$t0, 1
+	bne	$v0, $t0, cbh_q2_op2
+	move	$a0, $s0	# x
+	sub	$a1, $s1, $s2	# y - 1
+	jal	point_to
+	j	cbh_end
+cbh_q2_op2:	# quadrant 2 option (candidate pixel) 2
+	sub	$a0, $s0, $s2	# x - 1
+	move	$a1, $s1	# y
+	jal	point_to
+	j	cbh_end
+
+cbh_quad_3:
+	add	$a0, $s0, $s2	# x + 1
+	move	$a1, $s1	# y
+	jal	get_value
+	# if point to right (x + 1, y) is in jetstream, point at it
+	li	$t0, 1
+	bne	$v0, $t0, cbh_q3_op2
+	add	$a0, $s0, $s2	# x + 1
+	move	$a1, $s1	# y
+	jal	point_to
+	j	cbh_end
+
+cbh_q3_op2:	# quadrant 3 option (candidate pixel) 3
+	move	$a0, $s0	# x
+	sub	$a1, $s1, $s2	# y - 1
+	jal	point_to
+	j	cbh_end
+
+cbh_quad_4:
+	move	$a0, $s0	# x
+	add	$a1, $s1, $s2	# y + 1
+	jal	get_value
+	# if point below (x, y + 1) is in jetstream, point at it
+	li	$t0, 1
+	bne	$v0, $t0, cbh_q4_op2
+	move	$a0, $s0	# x
+	add	$a1, $s1, $s2	# y + 1
+	jal	point_to
+	j	cbh_end
+cbh_q4_op2:	# quadrant 4 option (candidate pixel) 2
+	add	$a0, $s0, $s2	# x + 1
+	move	$a1, $s1	# y
+	jal	point_to
+	j	cbh_end
+
+cbh_end:
+	lw	$ra, 0($sp)
+	lw	$s0, 4($sp)
+	lw	$s1, 8($sp)
+	lw	$s2, 12($sp)
+	add	$sp, $sp, 16
+	jr	$ra
+# ================================================================
 
 # *===============================================================
 # -----------------------------------------------------------------------
