@@ -47,6 +47,8 @@ five:	.float	5.0
 PI:	.float	3.141592
 F180:	.float  180.0
 
+uniq_chars: .space 256
+
 .align 2
 event_horizon_data: .space 90000
 
@@ -227,7 +229,8 @@ main_loop:
 	lbu	$s0, 0($s0)
 	beq	$s0, 0, main_no_puzzle
 	beq	$s1, 0, main_has_puzzle
-
+	lw	$s0, MUSHROOM
+	bge	$s0, 1, main_has_mushroom
 	jal	next_point
 	j	main_loop
 
@@ -242,15 +245,15 @@ main_no_puzzle:
 	lw	$s1, STARCOIN
 	blt	$s1, 4, main_puzzle_not_enough_request
 	sw	$s0, REQUEST_PUZZLE
+main_has_puzzle:
+	jal	solve_puzzle
+	j	main_loop
 main_puzzle_not_enough_request:
 	jal	next_point
 	j	main_loop
-main_has_puzzle:
-	lw	$s1, STARCOIN
-	bge	$s1, 4, main_puzzle_enough_coins
-	j	main_loop
-main_puzzle_enough_coins:
-	jal	solve_puzzle
+main_has_mushroom:
+	jal	next_point
+	sw	$0, MUSHROOM
 	j	main_loop
 
 ###CHECK IF GOT COIN###
@@ -1352,8 +1355,8 @@ inv_shift_rows:
 
 	#Assign I
 	move	$s3, $zero
-for_loop:
-	bge	$s3, 4, end_for
+isr_for_loop:
+	bge	$s3, 4, isr_end_for
 
 	li	$a1, 4
 	sub	$a1, $a1, $s3
@@ -1369,8 +1372,8 @@ for_loop:
 	sw	$v0, 0($t0)
 
 	add	$s3, $s3, 1
-	j	for_loop
-end_for:
+	j	isr_for_loop
+isr_end_for:
 	move	$a0, $s0
 	move	$a1, $s2
 	jal	rearrange_matrix
@@ -1391,11 +1394,11 @@ inv_mix_column:
 	sw	$s3, 12($sp)
 
 	move	$s0, $zero
-for_first:
-	bge	$s0, 4, for_first_done
+imc_for_first:
+	bge	$s0, 4, imc_for_first_done
 	move	$s1, $zero
-for_second:
-	bge	$s1, 4, for_second_done    
+imc_for_second:
+	bge	$s1, 4, imc_for_second_done    
 
 	#store where out[4*k+i] is 
 	mul	$t0, $s0, 4    
@@ -1404,8 +1407,8 @@ for_second:
 	sb	$zero, 0($s3)
 
 	move	$s2, $zero
-for_third:
-	bge	$s2, 4, for_third_done
+imc_for_third:
+	bge	$s2, 4, imc_for_third_done
 	mul	$t0, $s2, 256     
 	add	$t1, $s1, $s2
 	rem	$t1, $t1, 4
@@ -1425,14 +1428,14 @@ for_third:
 	sb	$t5, 0($s3)
 
 	add	$s2, $s2, 1
-	j	for_third
-for_third_done:
+	j	imc_for_third
+imc_for_third_done:
 	add	$s1, $s1, 1
-	j	for_second
-for_second_done:
+	j	imc_for_second
+imc_for_second_done:
 	add	$s0, $s0, 1
-	j	for_first
-for_first_done:
+	j	imc_for_first
+imc_for_first_done:
 	lw	$s0, 0($sp)
 	lw	$s1, 4($sp)
 	lw	$s2, 8($sp)
@@ -1440,85 +1443,163 @@ for_first_done:
 	add	$sp, $sp, 16
 	jr	$ra
 
-decrypt:
-	sub	$sp, $sp, 16		#Stack sub for arrays
-	move	$s0, $sp		#&A[0]
-	sub	$sp, $sp, 16
-	move	$s1, $sp		#&B[0]
-	sub	$sp, $sp, 16
-	move	$s2, $sp		#C[0]
-	sub	$sp, $sp, 16
-	move	$s3, $sp		#D[0]
+rearrange_matrix:
+	move	$t0, $zero
+rm_for_loop: 
+	bge	$t0, 4, rm_end_for_loop
 
-	sub	$sp, $sp, 20		#"Normal" stack stuff
-	sw	$ra, 0($sp)
-	sw	$s4, 4($sp)		#Store plaintext, ciphertext not stored
-	sw	$s5, 8($sp)		#key
-	sw	$s6, 12($sp)		#rounds w/ padding
-	sw	$s7, 16($sp)		#k
-	move	$s4, $a1
-	move	$s5, $a2
-	move	$s6, $a3
-	move	$s7, $0
-	
-	mul	$t0, $s6, 16		#16 * rounds
-	add	$t0, $s5, $t0		#&key[16*k]
-	move	$a1, $t0
-	move	$a2, $s2
-	jal	key_addition
+	#pointer to out
+	mul	$t1, $t0, 4
+	add	$t1, $t1, $a1
 
-	move	$a0, $s2
-	move	$a1, $s1
-	jal	inv_shift_rows
+	sw	$zero, 0($t1)
 
-	move	$a0, $s1
-	move	$a1, $s0
-	jal	inv_byte_substitution
+	move	$t2, $zero
+rm_second_for_loop:
+	#load in
+	bge	$t2, 4, rm_end_second_for_loop
+	mul	$t3, $t2, 4  
+	add	$t3, $t3, $t0
+	add	$t3, $a0, $t3
 
-	sub	$s7, $s6, 1		#k = round - 1
+	lbu	$t4, 0($t3)         
+	mul	$t5, $t2 ,8
+	sllv	$t4, $t4, $t5
 
-decryptFor:
-	ble	$s7, $0, decryptPostFor
-	move	$a0, $s0
-	mul	$t0, $s7, 16		#16 * k
-	add	$t0, $t0, $s5		#&key[16*k]
-	move	$a1, $t0
-	move	$a2, $s3
-	jal	key_addition
+	lw	$t5, 0($t1)
+	or	$t5, $t5, $t4
+	sw	$t5, 0($t1)
 
-	move	$a0, $s3
-	move	$a1, $s2
-	jal	inv_mix_column
+	add	$t2, $t2, 1
+	j	rm_second_for_loop
 
-	move	$a0, $s2
-	move	$a1, $s1
-	jal	inv_shift_rows
-
-	move	$a0, $s1
-	move	$a1, $s0
-	jal	inv_byte_substitution
-
-	sub	$s7, $s7, 1		#k--
-	j	decryptFor
-
-decryptPostFor:
-	move	$a0, $s0
-	move	$a1, $s5
-	move	$a2, $s4
-	jal	key_addition
-
-	lw	$ra, 0($sp)
-	lw	$s4, 4($sp)
-	lw	$s5, 8($sp)
-	lw	$s6, 12($sp)
-	lw	$s7, 16($sp)
-	add	$sp, $sp, 20
-
-	add	$sp, $sp, 64
-
+rm_end_second_for_loop:
+	add	$t0, $t0, 1
+	j	rm_for_loop
+rm_end_for_loop:
 	jr	$ra
 
+decrypt:
+    # Your code goes here :)
+    #There is the stack mem and the saved reg 
+    sub $sp, $sp, 100 
+ 	sw	$ra, 0($sp)
+	sw	$s0, 4($sp)
+	sw	$s1, 8($sp)
+	sw	$s2, 12($sp)
+	sw	$s3, 16($sp)
+	sw	$s4, 20($sp)
+	sw	$s5, 24($sp)
+	sw	$s6, 28($sp)
+	sw	$s7, 32($sp)
+
+
+    #Args, except rounds
+    move $s0, $a0
+    move $s1, $a1
+    move $s2, $a2
+    #stored in s7
+    move $s7, $a3
+
+    #A,B,C D loc 
+    add $s3, $sp, 36
+    add $s4, $sp, 52
+    add $s5, $sp, 68
+    add $s6, $sp, 84
+    
+    move $a0, $s0
+    mul $t0, $s7,16
+    add $a1,$s2 ,$t0
+    move $a2, $s5
+    jal key_addition
+
+    move $a0, $s5
+    move $a1, $s4
+    jal inv_shift_rows
+
+    move $a0,$s4
+    move $a1,$s3
+    jal inv_byte_substitution
+
+    #Rounds - 1
+    sub $s7, $s7, 1
+decrypt_for_loop:
+    ble $s7, 0,decrypt_end_for_loop
+
+    move $a0, $s3
+    mul $t0, $s7,16
+    add $a1, $s2,$t0
+    move $a2, $s6
+    jal key_addition
+
+    move $a0, $s6
+    move $a1, $s5
+    jal inv_mix_column
+
+    move $a0, $s5
+    move $a1, $s4
+    jal inv_shift_rows
+
+    move $a0,$s4
+    move $a1,$s3
+    jal inv_byte_substitution
+
+    sub $s7, $s7, 1
+    j decrypt_for_loop
+decrypt_end_for_loop:
+
+    move $a0, $s3
+    move $a1, $s2 
+    move $a2, $s1
+    jal key_addition    
+
+ 	lw	$ra, 0($sp)
+	lw	$s0, 4($sp)
+	lw	$s1, 8($sp)
+	lw	$s2, 12($sp)
+	lw	$s3, 16($sp)
+	lw	$s4, 20($sp)
+	lw	$s5, 24($sp)
+	lw	$s6, 28($sp)
+	lw	$s7, 32($sp)
+    add $sp, $sp, 100 
+
+    jr $ra
+
 ###MAX_UNIQUE_N_SUBSTR###
+my_strncpy:
+	sub	$sp, $sp, 16
+	sw	$s0, 0($sp)
+	sw	$s1, 4($sp)
+	sw	$s2, 8($sp)
+	sw	$ra, 12($sp)
+	move	$s0, $a0
+	move	$s1, $a1
+	move	$s2, $a2
+
+	move	$a0, $a1
+	jal	my_strlen
+	add	$v0, $v0, 1
+	bge	$s2, $v0, my_strncpy_if
+	move	$v0, $s2
+my_strncpy_if:
+	li	$t0, 0
+my_strncpy_for:
+	bge	$t0, $v0, my_strncpy_end
+	add	$t1, $s1, $t0
+	lb	$t2, 0($t1)
+	add	$t1, $s0, $t0
+	sb	$t2, 0($t1)
+	add	$t0, $t0, 1
+	j	my_strncpy_for
+my_strncpy_end:
+	lw	$s0, 0($sp)
+	lw	$s1, 4($sp)
+	lw	$s2, 8($sp)
+	lw	$ra, 12($sp)
+	add	$sp, $sp, 16
+	jr	$ra
+
 nth_uniq_char:
 	bne	$a0, $0, nthPostCond
 	bne	$a1, $0, nthPostCond
@@ -1594,10 +1675,10 @@ msPostWhile:
 max_unique_n_substr:
 	bne	$a0, $0, munsPostCond	#Base cases
 	bne	$a1, $0, munsPostCond
-	bne	$a2, $0, munssPostCond
+	bne	$a2, $0, munsPostCond
 	jr	$ra
 
-munssPostCond:
+munsPostCond:
 	sub	$sp, $sp, 36		#Setup stack pointer
 	sw	$ra, 0($sp)		#Save return address
 	sw	$s0, 4($sp)		#in_str
@@ -1630,9 +1711,9 @@ munsFor:
 
 munsPostInnerCond:
 	add	$s6, $s6, 1
-	j	msFor
+	j	munsFor
 
-munssEndFor:
+munsEndFor:
 	move	$a0, $s1
 	move	$a1, $s3
 	move	$a2, $s4
@@ -1711,6 +1792,7 @@ post_get_encrypted:
 	add	$a1, $a1, $s7			#Address of plaintext at current iter offset
 	la	$a2, puzzle_key
 	la	$a3, puzzle_rounds
+	lbu	$a3, 0($a3)
 	jal	decrypt
 
 	add	$s3, $s3, 1
@@ -1720,11 +1802,13 @@ post_decrypt:
 	la	$a0, puzzle_plaintext
 	la	$a1, puzzle_solution
 	la	$a2, puzzle_data
-	sw	$a2, 212($a2)			#n
+	lw	$a2, 212($a2)			#n
 	jal	max_unique_n_substr		#Solution should be written to puzzle_solution
 
 	la	$s0, puzzle_solution
 	sw	$s0, SUBMIT_SOLUTION
+	lw	$s2, MUSHROOM
+	lw	$s3, BANANA
 
 	la	$s0, puzzle_flag
 	sb	$0, 0($s0)
